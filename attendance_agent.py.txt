@@ -1,0 +1,50 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+import requests
+import os
+
+# ----- Wi-Fi/IP Restriction -----
+# Replace these with your office public IP addresses
+allowed_ips = ["203.0.113.5", "203.0.113.6"]  # Example IPs
+user_ip = requests.get('https://api.ipify.org').text
+if user_ip not in allowed_ips:
+    st.error("Access denied: You must be on the office Wi-Fi.")
+    st.stop()
+
+# ----- Employee List -----
+if not os.path.exists("employees.csv"):
+    st.error("employees.csv not found! Please add it in the same folder.")
+    st.stop()
+
+employees = pd.read_csv("employees.csv")
+employee_names = employees['Name'].tolist()
+
+# ----- Attendance Storage -----
+if os.path.exists("attendance.csv"):
+    attendance_df = pd.read_csv("attendance.csv")
+else:
+    attendance_df = pd.DataFrame(columns=["Name","Action","Timestamp"])
+
+st.title("AI Attendance Agent")
+
+# ----- Employee Login/Logout -----
+employee_name = st.selectbox("Select Your Name", employee_names)
+action = st.radio("Action", ["Log In", "Log Out"])
+
+if st.button("Submit"):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    attendance_df.loc[len(attendance_df)] = [employee_name, action, timestamp]
+    attendance_df.to_csv("attendance.csv", index=False)
+    st.success(f"{action} recorded for {employee_name} at {timestamp}")
+
+# ----- HR Dashboard -----
+st.subheader("HR Dashboard")
+st.dataframe(attendance_df)
+
+# ----- Download Button for HR -----
+st.download_button(
+    "Download Attendance CSV",
+    attendance_df.to_csv(index=False),
+    file_name="attendance.csv"
+)
